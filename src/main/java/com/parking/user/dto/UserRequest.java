@@ -8,7 +8,7 @@ public class UserRequest {
 	
 	private String name;
 	@NotNull
-	private Long mobileNo;
+	private String mobile;
 	private String email;
 	
 	
