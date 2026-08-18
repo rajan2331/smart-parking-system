@@ -7,7 +7,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.parking.common.exception.UserAlreadyExistsException;
+import com.parking.common.dto.ApiResponse;
 import com.parking.user.dto.UserRequest;
 import com.parking.user.dto.UserResponse;
 import com.parking.user.service.UserService;
@@ -24,9 +24,9 @@ public class UserController {
 	private  final UserService userService;
 	@PostMapping
 	@ResponseStatus(HttpStatus.CREATED)
-	public UserResponse register(@Valid @RequestBody UserRequest request) throws UserAlreadyExistsException
+	public ApiResponse<UserResponse> register(@Valid @RequestBody UserRequest request) 
 	{
 		UserResponse response = userService.register(request);
-		return response;
+		return ApiResponse.success("User registered successfully",response);
 	}
 }
