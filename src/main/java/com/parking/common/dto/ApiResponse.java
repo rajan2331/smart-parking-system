@@ -8,18 +8,34 @@ import lombok.Getter;
 @AllArgsConstructor
 public class ApiResponse<T> {
 
-    private final boolean success;
-    private final String message;
-    private final T data;
+    private boolean success;
+    private String code;
+    private String message;
+    private T data;
 
     public static <T> ApiResponse<T> success(
+            String code,
             String message,
             T data) {
 
-        return new ApiResponse<>(true, message, data);
+        return new ApiResponse<>(
+                true,
+                code,
+                message,
+                data
+        );
     }
 
-	public static <T> ApiResponse<T> failure(String message, T object) {
-		return new ApiResponse<>(false, message, object);
-	}
+    public static <T> ApiResponse<T> failure(
+            String code,
+            String message,
+            T data) {
+
+        return new ApiResponse<>(
+                false,
+                code,
+                message,
+                data
+        );
+    }
 }

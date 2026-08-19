@@ -15,16 +15,25 @@ import com.parking.common.dto.ApiResponse;
 @RestControllerAdvice
 public class GlobalExceptionHandler  {
 
-	  @ExceptionHandler(UserAlreadyExistsException.class)
+	  @ExceptionHandler(EmailAlreadyRegisteredException.class)
 	  @ResponseStatus(HttpStatus.CONFLICT)
 	    public <T> ApiResponse<T> handleUserAlreadyExists(
-	            UserAlreadyExistsException ex) {
+	    		EmailAlreadyRegisteredException ex) {
 
-	        return ApiResponse.failure(ex.getMessage(), null);
+	        return ApiResponse.failure(ex.getErrorCode().getCode(),ex.getMessage(), null);
+	                
+	    }
+	  @ExceptionHandler(MobileAlreadyRegisteredException.class)
+	  @ResponseStatus(HttpStatus.CONFLICT)
+	    public <T> ApiResponse<T> handleUserAlreadyExists(
+	    		MobileAlreadyRegisteredException ex) {
+
+	        return ApiResponse.failure(ex.getErrorCode().getCode(),ex.getMessage(), null);
 	                
 	    }
 	  
 	  @ExceptionHandler(MethodArgumentNotValidException.class)
+	  @ResponseStatus(HttpStatus.BAD_REQUEST)
 	  public ApiResponse<Map<String, String>> handleValidationException(MethodArgumentNotValidException ex) {
 		  Map<String, String> errors = new LinkedHashMap<>();
 
@@ -34,6 +43,6 @@ public class GlobalExceptionHandler  {
 		            fieldError.getDefaultMessage()
 		        );
 		    }
-		  return ApiResponse.failure("Validation failed", errors);
+		  return ApiResponse.failure(ErrorCode.VALIDATION_FAILED.getCode(),"Validation failed", errors);
 	  }
 }

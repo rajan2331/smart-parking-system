@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.parking.common.dto.ApiResponse;
+import com.parking.common.exception.ErrorCode;
 import com.parking.user.dto.UserRequest;
 import com.parking.user.dto.UserResponse;
 import com.parking.user.service.UserService;
@@ -27,6 +28,6 @@ public class UserController {
 	public ApiResponse<UserResponse> register(@Valid @RequestBody UserRequest request) 
 	{
 		UserResponse response = userService.register(request);
-		return ApiResponse.success("User registered successfully",response);
+		return ApiResponse.success(ErrorCode.USER_REGISTERED.getCode(),"User registered successfully",response);
 	}
 }
