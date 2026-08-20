@@ -17,7 +17,7 @@ public class GlobalExceptionHandler  {
 
 	  @ExceptionHandler(EmailAlreadyRegisteredException.class)
 	  @ResponseStatus(HttpStatus.CONFLICT)
-	    public <T> ApiResponse<T> handleUserAlreadyExists(
+	    public <T> ApiResponse<T> handleEmailAlreadyExists(
 	    		EmailAlreadyRegisteredException ex) {
 
 	        return ApiResponse.failure(ex.getErrorCode().getCode(),ex.getMessage(), null);
@@ -25,7 +25,7 @@ public class GlobalExceptionHandler  {
 	    }
 	  @ExceptionHandler(MobileAlreadyRegisteredException.class)
 	  @ResponseStatus(HttpStatus.CONFLICT)
-	    public <T> ApiResponse<T> handleUserAlreadyExists(
+	    public <T> ApiResponse<T> handleMobileAlreadyExists(
 	    		MobileAlreadyRegisteredException ex) {
 
 	        return ApiResponse.failure(ex.getErrorCode().getCode(),ex.getMessage(), null);
