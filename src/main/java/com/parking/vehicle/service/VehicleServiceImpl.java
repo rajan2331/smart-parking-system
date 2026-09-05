@@ -1,10 +1,11 @@
 package com.parking.vehicle.service;
 
-import java.util.List;
 
 import org.springframework.stereotype.Service;
 
 import com.parking.common.exception.VehicleAlreadyRegisteredException;
+import com.parking.user.entity.User;
+import com.parking.user.repository.UserRepository;
 import com.parking.common.exception.UserNotFoundException;
 import com.parking.vehicle.dto.VehicleRequest;
 import com.parking.vehicle.dto.VehicleResponse;
@@ -19,24 +20,25 @@ import lombok.RequiredArgsConstructor;
 public class VehicleServiceImpl implements VehicleService {
 
 	private final VehicleRepository vehicleRepository;
+	private final UserRepository userRepository;
+	private final VehicleMapper vehicleMapper;
 	@Override
-	public VehicleResponse register(VehicleRequest vehicle) {
+	public VehicleResponse register(VehicleRequest request) {
 		
-		if(vehicleRepository.existsByPlateNumber(vehicle.getPlateNumber()))
+		if(vehicleRepository.existsByPlateNumber(request.getPlateNumber()))
 			  throw new VehicleAlreadyRegisteredException("Vehicle already exists");
 		
-		      List<Vehicle> vehicleList = vehicleRepository.findByUserId(vehicle.getUserId());
-		      for(Vehicle veh : vehicleList)
-		      {
-		    	  if(veh.getUser().getId()==vehicle.getUserId())
-		    		  throw new UserNotFoundException("User already registered with this vehicle");
-		      }
-			  
-		//VehicleMapper mapper = new VehicleMapper();
-		
-	//	 vehicleRepository.save();
-		 return null;
-		
+		 User user = userRepository.findById(request.getUserId()).orElseThrow(() ->
+         new UserNotFoundException("User not found")
+				 );
+	    Vehicle vehicle = vehicleMapper.toEntity(request);
+
+        vehicle.setUser(user);
+
+        Vehicle savedVehicle = vehicleRepository.save(vehicle);
+
+        return vehicleMapper.toResponse(savedVehicle);
+    
 	}
 
 }
