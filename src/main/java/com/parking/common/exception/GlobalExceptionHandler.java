@@ -45,4 +45,22 @@ public class GlobalExceptionHandler  {
 		    }
 		  return ApiResponse.failure(ErrorCode.VALIDATION_FAILED.getCode(),"Validation failed", errors);
 	  }
+	  
+	  @ExceptionHandler(UserNotFoundException.class)
+	  @ResponseStatus(HttpStatus.NOT_FOUND)
+	    public <T> ApiResponse<T> handleUserNotFound(
+	    		UserNotFoundException ex) {
+
+	        return ApiResponse.failure(ex.getErrorCode().getCode(),ex.getMessage(), null);
+	                
+	    }
+	  
+	  @ExceptionHandler(VehicleAlreadyRegisteredException.class)
+	  @ResponseStatus(HttpStatus.NOT_FOUND)
+	    public <T> ApiResponse<T> handleVehicleALreadyExists(
+	    		VehicleAlreadyRegisteredException ex) {
+
+	        return ApiResponse.failure(ex.getErrorCode().getCode(),ex.getMessage(), null);
+	                
+	    }
 }

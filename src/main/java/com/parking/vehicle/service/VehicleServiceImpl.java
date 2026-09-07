@@ -2,6 +2,7 @@ package com.parking.vehicle.service;
 
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.parking.common.exception.VehicleAlreadyRegisteredException;
 import com.parking.user.entity.User;
@@ -17,6 +18,7 @@ import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
+@Transactional
 public class VehicleServiceImpl implements VehicleService {
 
 	private final VehicleRepository vehicleRepository;
