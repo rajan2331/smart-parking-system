@@ -63,4 +63,68 @@ public class GlobalExceptionHandler  {
 	        return ApiResponse.failure(ex.getErrorCode().getCode(),ex.getMessage(), null);
 	                
 	    }
+	  @ExceptionHandler(ParkingSpotAlreadyRegisteredException.class)
+	  @ResponseStatus(HttpStatus.CONFLICT)
+	  public ApiResponse<Void> handleParkingSpotAlreadyRegistered(
+	          ParkingSpotAlreadyRegisteredException ex) {
+
+	      return ApiResponse.failure(
+	              ErrorCode.PARKING_SPOT_ALREADY_REGISTERED.getCode(),
+	              ex.getMessage(),null
+	      );
+	  }
+	  
+	  @ExceptionHandler(VehicleNotFoundException.class)
+	  @ResponseStatus(HttpStatus.NOT_FOUND)
+	  public ApiResponse<Void> handleVehicleNotFound(
+	          VehicleNotFoundException ex) {
+
+	      return ApiResponse.failure(
+	              ErrorCode.VEHICLE_NOT_FOUND.getCode(),
+	              ex.getMessage(),null
+	      );
+	  }
+	  
+	  @ExceptionHandler(ParkingSpotNotAvailableException.class)
+	  @ResponseStatus(HttpStatus.NOT_FOUND)
+	  public ApiResponse<Void> handleParkingSpotNotFound(
+			  ParkingSpotNotAvailableException ex) {
+
+	      return ApiResponse.failure(
+	              ErrorCode.PARKING_SPOT_NOT_AVAILABLE.getCode(),
+	              ex.getMessage()
+	   ,null   );
+	  }
+	  @ExceptionHandler(VehicleAlreadyParkedException.class)
+	  @ResponseStatus(HttpStatus.CONFLICT)
+	  public ApiResponse<Void> handleVehicleAlreadyParked(
+	          VehicleAlreadyParkedException ex) {
+
+	      return ApiResponse.failure(
+	              ErrorCode.VEHICLE_ALREADY_PARKED.getCode(),
+	              ex.getMessage(),null
+	      );
+	  }
+	  
+	  @ExceptionHandler(ParkingSessionAlreadyCompletedException.class)
+	  @ResponseStatus(HttpStatus.CONFLICT)
+	  public ApiResponse<Void> handleParkingSessionAlreadyCompleted(
+	          ParkingSessionAlreadyCompletedException ex) {
+
+	      return ApiResponse.failure(
+	              ErrorCode.PARKING_SESSION_ALREADY_COMPLETED.getCode(),
+	              ex.getMessage(),null
+	      );
+	  }
+	  
+	  @ExceptionHandler(ParkingSessionNotFoundException.class)
+	  @ResponseStatus(HttpStatus.NOT_FOUND)
+	  public ApiResponse<Void> handleParkingSessionNotFound(
+	          ParkingSessionNotFoundException ex) {
+
+	      return ApiResponse.failure(
+	              ErrorCode.PARKING_SESSION_NOT_FOUND.getCode(),
+	              ex.getMessage(),null
+	      );
+	  }
 }
