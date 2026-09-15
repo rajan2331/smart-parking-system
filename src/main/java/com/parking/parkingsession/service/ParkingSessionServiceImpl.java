@@ -1,5 +1,7 @@
 package com.parking.parkingsession.service;
 
+import java.math.BigDecimal;
+import java.time.Duration;
 import java.time.LocalDateTime;
 
 import org.springframework.stereotype.Service;
@@ -13,6 +15,8 @@ import com.parking.common.exception.VehicleNotFoundException;
 import com.parking.parking.entity.ParkingSpot;
 import com.parking.parking.entity.ParkingSpotStatus;
 import com.parking.parking.repository.ParkingSpotRepository;
+import com.parking.parkingfee.service.ParkingFeeService;
+import com.parking.parkingrate.service.ParkingRateService;
 import com.parking.parkingsession.dto.ParkingSessionRequest;
 import com.parking.parkingsession.dto.ParkingSessionResponse;
 import com.parking.parkingsession.entity.ParkingSession;
@@ -32,6 +36,8 @@ public class ParkingSessionServiceImpl implements ParkingSessionService {
     private final ParkingSpotRepository parkingSpotRepository;
     private final ParkingSessionRepository parkingSessionRepository;
     private final ParkingSessionMapper parkingSessionMapper;
+    private final ParkingFeeService parkingFeeService;
+    private final ParkingRateService parkingRateService;
 
     @Override
     @Transactional
@@ -88,8 +94,17 @@ public class ParkingSessionServiceImpl implements ParkingSessionService {
                     "Parking session is already completed");
         }
 
-        session.setExitTime(LocalDateTime.now());
+        LocalDateTime exitTime = LocalDateTime.now();
+
+        BigDecimal parkingFee = parkingFeeService.calculateFee(
+                session.getParkingSpot().getType(),
+                session.getEntryTime(),
+                exitTime
+        );
+
+        session.setExitTime(exitTime);
         session.setStatus(ParkingSessionStatus.COMPLETED);
+        session.setParkingFee(parkingFee);
 
         ParkingSpot parkingSpot = session.getParkingSpot();
         parkingSpot.setStatus(ParkingSpotStatus.AVAILABLE);
@@ -99,4 +114,5 @@ public class ParkingSessionServiceImpl implements ParkingSessionService {
 
         return parkingSessionMapper.toResponse(savedSession);
     }
+    
 }
