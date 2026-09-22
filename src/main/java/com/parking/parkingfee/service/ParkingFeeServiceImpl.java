@@ -1,34 +1,37 @@
 package com.parking.parkingfee.service;
 
 import java.math.BigDecimal;
-import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.List;
 
 import org.springframework.stereotype.Service;
 
 import com.parking.parking.entity.ParkingSpotType;
-import com.parking.parkingrate.service.ParkingRateService;
+import com.parking.parkingfee.strategy.ParkingFeeStrategy;
 
-import lombok.RequiredArgsConstructor;
 
 @Service
-@RequiredArgsConstructor
 public class ParkingFeeServiceImpl implements ParkingFeeService {
 
-    private final ParkingRateService parkingRateService;
+	private final List<ParkingFeeStrategy> strategies;
+
+    public ParkingFeeServiceImpl(List<ParkingFeeStrategy> strategies) {
+        this.strategies = strategies;
+    }
 
     @Override
-    public BigDecimal calculateFee(ParkingSpotType spotType,LocalDateTime entryTime,LocalDateTime exitTime) {
+    public BigDecimal calculateFee( ParkingSpotType spotType,LocalDateTime entryTime,LocalDateTime exitTime) {
 
-        long minutes = Duration.between(entryTime, exitTime).toMinutes();
+        ParkingFeeStrategy strategy = strategies.stream()
+                .filter(s -> s.supports(spotType))
+                .findFirst()
+                .orElseThrow(() ->
+                        new IllegalStateException(
+                                "No parking fee strategy found"));
 
-        long hours = (long) Math.ceil(minutes / 60.0);
-
-        hours = Math.max(hours, 1);
-
-        BigDecimal hourlyRate =
-                parkingRateService.getHourlyRate(spotType);
-
-        return hourlyRate.multiply(BigDecimal.valueOf(hours));
+        return strategy.calculate(
+                spotType,
+                entryTime,
+                exitTime);
     }
 }

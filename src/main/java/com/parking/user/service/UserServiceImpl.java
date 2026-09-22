@@ -2,6 +2,7 @@ package com.parking.user.service;
 
 import org.hibernate.exception.ConstraintViolationException;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,19 +24,23 @@ public class UserServiceImpl implements UserService {
 	private final UserRepository userRepository;
 	
 	 private final UserMapper userMapper;	
+	 
+	 private final PasswordEncoder passwordEncoder;
 	@Override
 	@Transactional
-	public UserResponse register(UserRequest request)  {
+	public UserResponse register(UserRequest user)  {
 		User userEntity = null;
-		userEntity = userMapper.toEntity(request);
+		userEntity = userMapper.toEntity(user);
 		User savedUser= null;
-		if (userRepository.existsByEmail(request.getEmail())) {
+		if (userRepository.existsByEmail(user.getEmail())) {
 		    throw new EmailAlreadyRegisteredException("User already exists");
 		}
-		if (userRepository.existsByMobile(request.getMobile())) {
+		if (userRepository.existsByMobile(user.getMobile())) {
 		    throw new MobileAlreadyRegisteredException("Mobile number already registered");
 		}
-		
+		user.setPassword(
+		        passwordEncoder.encode(user.getPassword())
+		);
 		try {
 			savedUser = userRepository.saveAndFlush(userEntity);
 		}catch(DataIntegrityViolationException ex)
