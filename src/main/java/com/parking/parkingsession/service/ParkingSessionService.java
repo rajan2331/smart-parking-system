@@ -5,6 +5,6 @@ import com.parking.parkingsession.dto.ParkingSessionResponse;
 
 public interface ParkingSessionService {
 
-    ParkingSessionResponse startSession(ParkingSessionRequest request);
-    ParkingSessionResponse completeSession(Long sessionId);
+    ParkingSessionResponse startSession(ParkingSessionRequest request, String ownerEmail);
+    ParkingSessionResponse completeSession(Long sessionId, String ownerEmail);
 }

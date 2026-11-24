@@ -41,9 +41,11 @@ public class ParkingSessionServiceImpl implements ParkingSessionService {
 
     @Override
     @Transactional
-    public ParkingSessionResponse startSession(ParkingSessionRequest request) {
+    public ParkingSessionResponse startSession(ParkingSessionRequest request, String ownerEmail) {
 
+        // Another user's vehicle is reported as "not found" so IDs can't be probed.
         Vehicle vehicle = vehicleRepository.findById(request.getVehicleId())
+                .filter(v -> isOwnedBy(v, ownerEmail))
                 .orElseThrow(() ->
                         new VehicleNotFoundException("Vehicle not found"));
 
@@ -82,9 +84,10 @@ public class ParkingSessionServiceImpl implements ParkingSessionService {
     
     @Override
     @Transactional
-    public ParkingSessionResponse completeSession(Long sessionId) {
+    public ParkingSessionResponse completeSession(Long sessionId, String ownerEmail) {
 
         ParkingSession session = parkingSessionRepository.findById(sessionId)
+                .filter(s -> isOwnedBy(s.getVehicle(), ownerEmail))
                 .orElseThrow(() ->
                         new ParkingSessionNotFoundException(
                                 "Parking session not found"));
@@ -114,5 +117,10 @@ public class ParkingSessionServiceImpl implements ParkingSessionService {
 
         return parkingSessionMapper.toResponse(savedSession);
     }
-    
+
+    private boolean isOwnedBy(Vehicle vehicle, String email) {
+        return vehicle.getUser() != null
+                && vehicle.getUser().getEmail().equalsIgnoreCase(email);
+    }
+
 }

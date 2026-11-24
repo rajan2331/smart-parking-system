@@ -25,12 +25,12 @@ public class VehicleServiceImpl implements VehicleService {
 	private final UserRepository userRepository;
 	private final VehicleMapper vehicleMapper;
 	@Override
-	public VehicleResponse register(VehicleRequest request) {
-		
+	public VehicleResponse register(VehicleRequest request, String ownerEmail) {
+
 		if(vehicleRepository.existsByPlateNumber(request.getPlateNumber()))
 			  throw new VehicleAlreadyRegisteredException("Vehicle already exists");
-		
-		 User user = userRepository.findById(request.getUserId()).orElseThrow(() ->
+
+		 User user = userRepository.findByEmail(ownerEmail).orElseThrow(() ->
          new UserNotFoundException("User not found")
 				 );
 	    Vehicle vehicle = vehicleMapper.toEntity(request);

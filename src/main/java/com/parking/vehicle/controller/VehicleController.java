@@ -1,6 +1,8 @@
 package com.parking.vehicle.controller;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -25,9 +27,11 @@ public class VehicleController {
 	
 	@PostMapping
 	@ResponseStatus(HttpStatus.CREATED)
-	public ApiResponse<?> register(   @Valid @RequestBody VehicleRequest dto)
+	public ApiResponse<?> register(@Valid @RequestBody VehicleRequest dto,
+			@AuthenticationPrincipal UserDetails currentUser)
 	{
-		VehicleResponse response = vehicleService.register(dto);
+		// currentUser is set by JwtAuthenticationFilter; its username is the email from the token
+		VehicleResponse response = vehicleService.register(dto, currentUser.getUsername());
 		return ApiResponse.success(ErrorCode.VEHICLE_REGISTERED.getCode(),"Vehicle registered successfully",response);
 	}
 }

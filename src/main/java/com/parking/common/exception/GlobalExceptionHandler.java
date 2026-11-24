@@ -4,6 +4,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -117,6 +118,15 @@ public class GlobalExceptionHandler  {
 	      );
 	  }
 	  
+	  @ExceptionHandler(BadCredentialsException.class)
+	  @ResponseStatus(HttpStatus.UNAUTHORIZED)
+	  public ApiResponse<Void> handleBadCredentials(BadCredentialsException ex) {
+		  // Same message for unknown email and wrong password to avoid user enumeration
+		  return ApiResponse.failure(
+				  ErrorCode.INVALID_CREDENTIALS.getCode(),
+				  "Invalid email or password", null);
+	  }
+
 	  @ExceptionHandler(ParkingSessionNotFoundException.class)
 	  @ResponseStatus(HttpStatus.NOT_FOUND)
 	  public ApiResponse<Void> handleParkingSessionNotFound(

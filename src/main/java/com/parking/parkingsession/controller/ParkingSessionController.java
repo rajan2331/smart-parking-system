@@ -1,6 +1,8 @@
 package com.parking.parkingsession.controller;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -26,10 +28,11 @@ public class ParkingSessionController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public ApiResponse<ParkingSessionResponse> startSession(
-            @Valid @RequestBody ParkingSessionRequest request) {
+            @Valid @RequestBody ParkingSessionRequest request,
+            @AuthenticationPrincipal UserDetails currentUser) {
 
         ParkingSessionResponse response =
-                parkingSessionService.startSession(request);
+                parkingSessionService.startSession(request, currentUser.getUsername());
 
         return ApiResponse.success(
                 "PARKING_SESSION_STARTED",
@@ -40,10 +43,11 @@ public class ParkingSessionController {
     
     @PostMapping("/{sessionId}/complete")
     public ApiResponse<ParkingSessionResponse> completeSession(
-            @PathVariable Long sessionId) {
+            @PathVariable Long sessionId,
+            @AuthenticationPrincipal UserDetails currentUser) {
 
         ParkingSessionResponse response =
-                parkingSessionService.completeSession(sessionId);
+                parkingSessionService.completeSession(sessionId, currentUser.getUsername());
 
         return ApiResponse.success(
                 "PARKING_SESSION_COMPLETED",

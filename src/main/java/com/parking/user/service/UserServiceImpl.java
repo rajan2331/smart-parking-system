@@ -38,7 +38,7 @@ public class UserServiceImpl implements UserService {
 		if (userRepository.existsByMobile(user.getMobile())) {
 		    throw new MobileAlreadyRegisteredException("Mobile number already registered");
 		}
-		user.setPassword(
+		userEntity.setPassword(
 		        passwordEncoder.encode(user.getPassword())
 		);
 		try {
