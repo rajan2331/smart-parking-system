@@ -57,7 +57,7 @@ public class GlobalExceptionHandler  {
 	    }
 	  
 	  @ExceptionHandler(VehicleAlreadyRegisteredException.class)
-	  @ResponseStatus(HttpStatus.NOT_FOUND)
+	  @ResponseStatus(HttpStatus.CONFLICT)
 	    public <T> ApiResponse<T> handleVehicleALreadyExists(
 	    		VehicleAlreadyRegisteredException ex) {
 
@@ -87,14 +87,35 @@ public class GlobalExceptionHandler  {
 	  }
 	  
 	  @ExceptionHandler(ParkingSpotNotAvailableException.class)
-	  @ResponseStatus(HttpStatus.NOT_FOUND)
-	  public ApiResponse<Void> handleParkingSpotNotFound(
+	  @ResponseStatus(HttpStatus.CONFLICT)
+	  public ApiResponse<Void> handleParkingSpotNotAvailable(
 			  ParkingSpotNotAvailableException ex) {
 
 	      return ApiResponse.failure(
 	              ErrorCode.PARKING_SPOT_NOT_AVAILABLE.getCode(),
 	              ex.getMessage()
 	   ,null   );
+	  }
+
+	  @ExceptionHandler(ParkingSpotNotFoundException.class)
+	  @ResponseStatus(HttpStatus.NOT_FOUND)
+	  public ApiResponse<Void> handleParkingSpotNotFound(
+			  ParkingSpotNotFoundException ex) {
+
+	      return ApiResponse.failure(
+	              ErrorCode.PARKING_SPOT_NOT_FOUND.getCode(),
+	              ex.getMessage(), null);
+	  }
+
+	  // Missing rate is a server configuration problem, so 500 — but in the standard JSON shape.
+	  @ExceptionHandler(ParkingRateNotFoundException.class)
+	  @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
+	  public ApiResponse<Void> handleParkingRateNotFound(
+			  ParkingRateNotFoundException ex) {
+
+	      return ApiResponse.failure(
+	              ErrorCode.PARKING_RATE_NOT_FOUND.getCode(),
+	              ex.getMessage(), null);
 	  }
 	  @ExceptionHandler(VehicleAlreadyParkedException.class)
 	  @ResponseStatus(HttpStatus.CONFLICT)

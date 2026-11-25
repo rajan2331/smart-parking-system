@@ -10,6 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.parking.common.exception.ParkingSessionAlreadyCompletedException;
 import com.parking.common.exception.ParkingSessionNotFoundException;
 import com.parking.common.exception.ParkingSpotNotAvailableException;
+import com.parking.common.exception.ParkingSpotNotFoundException;
 import com.parking.common.exception.VehicleAlreadyParkedException;
 import com.parking.common.exception.VehicleNotFoundException;
 import com.parking.parking.entity.ParkingSpot;
@@ -59,7 +60,7 @@ public class ParkingSessionServiceImpl implements ParkingSessionService {
         ParkingSpot parkingSpot = parkingSpotRepository
                 .findById(request.getParkingSpotId())
                 .orElseThrow(() ->
-                        new RuntimeException("Parking spot not found"));
+                        new ParkingSpotNotFoundException("Parking spot not found"));
 
       
         if (parkingSpot.getStatus() != ParkingSpotStatus.AVAILABLE) {
