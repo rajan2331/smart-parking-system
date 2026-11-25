@@ -10,5 +10,7 @@ public class VehicleResponse {
 	private Long id;
 	private LocalDateTime createdAt;
 	private String plateNumber;
+	private String type;
+	private String color;
 	
 }

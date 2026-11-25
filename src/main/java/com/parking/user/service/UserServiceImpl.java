@@ -1,6 +1,5 @@
 package com.parking.user.service;
 
-import org.hibernate.exception.ConstraintViolationException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -8,6 +7,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.parking.common.exception.EmailAlreadyRegisteredException;
 import com.parking.common.exception.MobileAlreadyRegisteredException;
+import com.parking.common.exception.UserNotFoundException;
+import com.parking.common.util.ConstraintViolations;
 import com.parking.user.dto.UserRequest;
 import com.parking.user.dto.UserResponse;
 import com.parking.user.entity.User;
@@ -46,44 +47,30 @@ public class UserServiceImpl implements UserService {
 		}catch(DataIntegrityViolationException ex)
 		{
 
-	        ConstraintViolationException constraintException =
-	                findConstraintViolation(ex);
+	        String constraintName = ConstraintViolations.findConstraintName(ex);
 
-	        if (constraintException != null) {
+	        if ("uk_users_email".equals(constraintName)) {
+	            throw new EmailAlreadyRegisteredException(
+	                    "Email is already registered");
+	        }
 
-	            String constraintName =
-	                    constraintException.getConstraintName();
-
-	            if ("uk_users_email".equals(constraintName)) {
-	                throw new EmailAlreadyRegisteredException(
-	                        "Email is already registered");
-	            }
-
-	            if ("uk_users_mobile".equals(constraintName)) {
-	                throw new MobileAlreadyRegisteredException(
-	                        "Mobile number is already registered");
-	            }
+	        if ("uk_users_mobile".equals(constraintName)) {
+	            throw new MobileAlreadyRegisteredException(
+	                    "Mobile number is already registered");
 	        }
 
 	        throw ex;
 	    }
-		
+
 		return userMapper.toResponse(savedUser);
 	}
 
-	private ConstraintViolationException findConstraintViolation(
-	        Throwable throwable) {
-
-	    while (throwable != null) {
-
-	        if (throwable instanceof ConstraintViolationException) {
-	            return (ConstraintViolationException) throwable;
-	        }
-
-	        throwable = throwable.getCause();
-	    }
-
-	    return null;
+	@Override
+	@Transactional(readOnly = true)
+	public UserResponse getByEmail(String email) {
+		return userRepository.findByEmail(email)
+				.map(userMapper::toResponse)
+				.orElseThrow(() -> new UserNotFoundException("User not found"));
 	}
 
 }

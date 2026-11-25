@@ -48,8 +48,9 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(HttpMethod.POST, "/api/v1/users", "/api/v1/auth/login").permitAll()
                 .requestMatchers("/actuator/health", "/error").permitAll()
-                // Admin-only: managing parking spots
+                // Admin-only: managing parking spots and rates
                 .requestMatchers(HttpMethod.POST, "/api/v1/parking-spots").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.PUT, "/api/v1/parking-rates/**").hasRole("ADMIN")
                 .anyRequest().authenticated())
             .exceptionHandling(e -> e
                 .authenticationEntryPoint((req, res, ex) ->

@@ -6,4 +6,6 @@ import com.parking.user.dto.UserResponse;
 public interface UserService {
 
 	  UserResponse register(UserRequest userRequest) ;
+
+	  UserResponse getByEmail(String email);
 }

@@ -11,6 +11,7 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Version;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
@@ -36,4 +37,9 @@ public class ParkingSpot {
 
     @CreationTimestamp
     private LocalDateTime createdAt;
+
+    // Optimistic locking: Hibernate adds "WHERE version = ?" to updates and fails if another
+    // transaction changed this spot first (prevents two sessions grabbing the same spot).
+    @Version
+    private Long version;
 }

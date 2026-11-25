@@ -1,5 +1,6 @@
 package com.parking.vehicle.service;
 
+import java.util.List;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -40,7 +41,15 @@ public class VehicleServiceImpl implements VehicleService {
         Vehicle savedVehicle = vehicleRepository.save(vehicle);
 
         return vehicleMapper.toResponse(savedVehicle);
-    
+
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public List<VehicleResponse> getMyVehicles(String ownerEmail) {
+		return vehicleRepository.findByUserEmailOrderByCreatedAtDesc(ownerEmail).stream()
+				.map(vehicleMapper::toResponse)
+				.toList();
 	}
 
 }

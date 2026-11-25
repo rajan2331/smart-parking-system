@@ -4,12 +4,14 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import com.parking.common.dto.ApiResponse;
 
@@ -139,6 +141,24 @@ public class GlobalExceptionHandler  {
 	      );
 	  }
 	  
+	  // Bad path/query value, e.g. ?status=BOGUS or /parking-rates/TRUCK
+	  @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+	  @ResponseStatus(HttpStatus.BAD_REQUEST)
+	  public ApiResponse<Void> handleTypeMismatch(MethodArgumentTypeMismatchException ex) {
+		  return ApiResponse.failure(
+				  ErrorCode.VALIDATION_FAILED.getCode(),
+				  "Invalid value '" + ex.getValue() + "' for parameter '" + ex.getName() + "'", null);
+	  }
+
+	  // Fallback for any other concurrent update (e.g. two requests completing the same session)
+	  @ExceptionHandler(ObjectOptimisticLockingFailureException.class)
+	  @ResponseStatus(HttpStatus.CONFLICT)
+	  public ApiResponse<Void> handleOptimisticLock(ObjectOptimisticLockingFailureException ex) {
+		  return ApiResponse.failure(
+				  ErrorCode.CONCURRENT_MODIFICATION.getCode(),
+				  "This record was changed by another request. Please retry.", null);
+	  }
+
 	  @ExceptionHandler(BadCredentialsException.class)
 	  @ResponseStatus(HttpStatus.UNAUTHORIZED)
 	  public ApiResponse<Void> handleBadCredentials(BadCredentialsException ex) {

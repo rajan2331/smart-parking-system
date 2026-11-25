@@ -3,7 +3,10 @@ package com.parking.parkingsession.service;
 import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.List;
 
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -13,6 +16,7 @@ import com.parking.common.exception.ParkingSpotNotAvailableException;
 import com.parking.common.exception.ParkingSpotNotFoundException;
 import com.parking.common.exception.VehicleAlreadyParkedException;
 import com.parking.common.exception.VehicleNotFoundException;
+import com.parking.common.util.ConstraintViolations;
 import com.parking.parking.entity.ParkingSpot;
 import com.parking.parking.entity.ParkingSpotStatus;
 import com.parking.parking.repository.ParkingSpotRepository;
@@ -77,10 +81,35 @@ public class ParkingSessionServiceImpl implements ParkingSessionService {
 
         parkingSpot.setStatus(ParkingSpotStatus.OCCUPIED);
 
-        ParkingSession savedSession =
-                parkingSessionRepository.save(session);
+        // The checks above can race with a concurrent request. saveAndFlush forces the SQL to run
+        // here so the database guards (spot @Version, active-session unique indexes) report a
+        // conflict inside this method, where we can turn it into a clear 409.
+        ParkingSession savedSession;
+        try {
+            savedSession = parkingSessionRepository.saveAndFlush(session);
+        } catch (ObjectOptimisticLockingFailureException ex) {
+            throw new ParkingSpotNotAvailableException("Parking spot was just taken by another driver");
+        } catch (DataIntegrityViolationException ex) {
+            String constraint = ConstraintViolations.findConstraintName(ex);
+            if ("ux_active_session_per_spot".equals(constraint)) {
+                throw new ParkingSpotNotAvailableException("Parking spot was just taken by another driver");
+            }
+            if ("ux_active_session_per_vehicle".equals(constraint)) {
+                throw new VehicleAlreadyParkedException("Vehicle already has an active parking session");
+            }
+            throw ex;
+        }
 
         return parkingSessionMapper.toResponse(savedSession);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ParkingSessionResponse> getMySessions(String ownerEmail, ParkingSessionStatus status) {
+        List<ParkingSession> sessions = (status == null)
+                ? parkingSessionRepository.findByVehicleUserEmailOrderByEntryTimeDesc(ownerEmail)
+                : parkingSessionRepository.findByVehicleUserEmailAndStatusOrderByEntryTimeDesc(ownerEmail, status);
+        return sessions.stream().map(parkingSessionMapper::toResponse).toList();
     }
     
     @Override

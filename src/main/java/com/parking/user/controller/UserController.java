@@ -1,6 +1,9 @@
 package com.parking.user.controller;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -21,13 +24,19 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class UserController {
 
-	
+
 	private  final UserService userService;
 	@PostMapping
 	@ResponseStatus(HttpStatus.CREATED)
-	public ApiResponse<UserResponse> register(@Valid @RequestBody UserRequest request) 
+	public ApiResponse<UserResponse> register(@Valid @RequestBody UserRequest request)
 	{
 		UserResponse response = userService.register(request);
 		return ApiResponse.success(ErrorCode.USER_REGISTERED.getCode(),"User registered successfully",response);
+	}
+
+	@GetMapping("/me")
+	public ApiResponse<UserResponse> me(@AuthenticationPrincipal UserDetails currentUser) {
+		UserResponse response = userService.getByEmail(currentUser.getUsername());
+		return ApiResponse.success("USER_FETCHED", "User fetched successfully", response);
 	}
 }
