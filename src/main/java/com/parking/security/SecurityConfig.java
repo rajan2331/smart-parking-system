@@ -1,5 +1,7 @@
 package com.parking.security;
 
+import java.io.IOException;
+
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -13,11 +15,12 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 import com.parking.common.exception.ErrorCode;
+
+import jakarta.servlet.http.HttpServletResponse;
 
 @Configuration
 @EnableWebSecurity
@@ -45,22 +48,27 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(HttpMethod.POST, "/api/v1/users", "/api/v1/auth/login").permitAll()
                 .requestMatchers("/actuator/health", "/error").permitAll()
+                // Admin-only: managing parking spots
+                .requestMatchers(HttpMethod.POST, "/api/v1/parking-spots").hasRole("ADMIN")
                 .anyRequest().authenticated())
-            .exceptionHandling(e -> e.authenticationEntryPoint(unauthorizedEntryPoint()))
+            .exceptionHandling(e -> e
+                .authenticationEntryPoint((req, res, ex) ->
+                    writeError(res, HttpStatus.UNAUTHORIZED, ErrorCode.UNAUTHORIZED, "Authentication required"))
+                .accessDeniedHandler((req, res, ex) ->
+                    writeError(res, HttpStatus.FORBIDDEN, ErrorCode.FORBIDDEN, "You do not have permission to perform this action")))
             .httpBasic(basic -> basic.disable())
             .formLogin(form -> form.disable())
             .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }
 
-    /** Returns 401 in the same JSON shape as ApiResponse.failure(...). */
-    private AuthenticationEntryPoint unauthorizedEntryPoint() {
-        return (request, response, ex) -> {
-            response.setStatus(HttpStatus.UNAUTHORIZED.value());
-            response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-            response.getWriter().write(
-                "{\"success\":false,\"code\":\"" + ErrorCode.UNAUTHORIZED.getCode()
-                + "\",\"message\":\"Authentication required\",\"data\":null}");
-        };
+    /** Writes 401/403 in the same JSON shape as ApiResponse.failure(...). */
+    private static void writeError(HttpServletResponse response, HttpStatus status,
+                                   ErrorCode code, String message) throws IOException {
+        response.setStatus(status.value());
+        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+        response.getWriter().write(
+            "{\"success\":false,\"code\":\"" + code.getCode()
+            + "\",\"message\":\"" + message + "\",\"data\":null}");
     }
 }

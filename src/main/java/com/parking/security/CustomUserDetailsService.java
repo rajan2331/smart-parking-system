@@ -1,7 +1,5 @@
 package com.parking.security;
 
-import java.util.List;
-
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -23,7 +21,8 @@ public class CustomUserDetailsService implements UserDetailsService {
         return userRepository.findByEmail(email)
                 .map(user -> User.withUsername(user.getEmail())
                         .password(user.getPassword())
-                        .authorities(List.of())
+                        // roles("ADMIN") becomes authority "ROLE_ADMIN", checked by hasRole("ADMIN")
+                        .roles(user.getRole().name())
                         .build())
                 .orElseThrow(() -> new UsernameNotFoundException("User not found"));
     }
