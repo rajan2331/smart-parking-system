@@ -10,13 +10,14 @@ import static org.mockito.Mockito.when;
 
 import java.math.BigDecimal;
 import java.sql.SQLException;
+import java.time.Clock;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.Optional;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -26,6 +27,7 @@ import com.parking.common.exception.ParkingSessionAlreadyCompletedException;
 import com.parking.common.exception.ParkingSessionNotFoundException;
 import com.parking.common.exception.ParkingSpotNotAvailableException;
 import com.parking.common.exception.ParkingSpotNotFoundException;
+import com.parking.common.exception.ParkingSpotReservedException;
 import com.parking.common.exception.VehicleAlreadyParkedException;
 import com.parking.common.exception.VehicleNotFoundException;
 import com.parking.parking.entity.ParkingSpot;
@@ -33,13 +35,14 @@ import com.parking.parking.entity.ParkingSpotStatus;
 import com.parking.parking.entity.ParkingSpotType;
 import com.parking.parking.repository.ParkingSpotRepository;
 import com.parking.parkingfee.service.ParkingFeeService;
-import com.parking.parkingrate.service.ParkingRateService;
 import com.parking.parkingsession.dto.ParkingSessionRequest;
 import com.parking.parkingsession.dto.ParkingSessionResponse;
 import com.parking.parkingsession.entity.ParkingSession;
 import com.parking.parkingsession.entity.ParkingSessionStatus;
 import com.parking.parkingsession.mapper.ParkingSessionMapper;
 import com.parking.parkingsession.repository.ParkingSessionRepository;
+import com.parking.reservation.config.ReservationProperties;
+import com.parking.reservation.repository.ReservationRepository;
 import com.parking.user.entity.User;
 import com.parking.vehicle.entity.Vehicle;
 import com.parking.vehicle.repository.VehicleRepository;
@@ -49,13 +52,15 @@ class ParkingSessionServiceImplTest {
 
     private static final String OWNER = "owner@test.com";
 
+    private static final LocalDateTime NOW = LocalDateTime.of(2026, 6, 1, 12, 0);
+
     @Mock VehicleRepository vehicleRepository;
     @Mock ParkingSpotRepository parkingSpotRepository;
     @Mock ParkingSessionRepository parkingSessionRepository;
     @Mock ParkingSessionMapper parkingSessionMapper;
     @Mock ParkingFeeService parkingFeeService;
-    @Mock ParkingRateService parkingRateService;
-    @InjectMocks ParkingSessionServiceImpl service;
+    @Mock ReservationRepository reservationRepository;
+    ParkingSessionServiceImpl service;
 
     private Vehicle vehicle;
     private ParkingSpot spot;
@@ -63,6 +68,11 @@ class ParkingSessionServiceImplTest {
 
     @BeforeEach
     void setUp() {
+        ReservationProperties props = new ReservationProperties(30, 24, 7, 3, 15, 15, 120, 5);
+        Clock clock = Clock.fixed(NOW.toInstant(ZoneOffset.UTC), ZoneOffset.UTC);
+        service = new ParkingSessionServiceImpl(vehicleRepository, parkingSpotRepository, parkingSessionRepository,
+                parkingSessionMapper, parkingFeeService, reservationRepository, props, clock);
+
         User owner = new User();
         owner.setEmail(OWNER);
 
@@ -83,7 +93,27 @@ class ParkingSessionServiceImplTest {
     private void stubHappyPathLookups() {
         when(vehicleRepository.findById(1L)).thenReturn(Optional.of(vehicle));
         when(parkingSpotRepository.findById(10L)).thenReturn(Optional.of(spot));
-        when(parkingSessionMapper.toEntity(request)).thenReturn(new ParkingSession());
+    }
+
+    @Test
+    void start_walkInOnSpotReservedWithinBuffer_isRejected() {
+        stubHappyPathLookups();
+        when(reservationRepository.existsBlockingReservation(10L, NOW, NOW.plusMinutes(120))).thenReturn(true);
+
+        assertThatThrownBy(() -> service.startSession(request, OWNER))
+                .isInstanceOf(ParkingSpotReservedException.class);
+        verify(parkingSessionRepository, never()).saveAndFlush(any());
+    }
+
+    @Test
+    void startForReservation_skipsTheWalkInReservationCheck() {
+        when(parkingSessionRepository.saveAndFlush(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        ParkingSession session = service.startSessionForReservation(vehicle, spot);
+
+        assertThat(session.getStatus()).isEqualTo(ParkingSessionStatus.ACTIVE);
+        assertThat(session.getEntryTime()).isEqualTo(NOW);
+        verify(reservationRepository, never()).existsBlockingReservation(any(), any(), any());
     }
 
     // ---- startSession ----
@@ -116,7 +146,7 @@ class ParkingSessionServiceImplTest {
 
     @Test
     void start_vehicleAlreadyParked_isRejected() {
-        when(vehicleRepository.findById(1L)).thenReturn(Optional.of(vehicle));
+        stubHappyPathLookups();
         when(parkingSessionRepository.existsByVehicleIdAndStatus(1L, ParkingSessionStatus.ACTIVE)).thenReturn(true);
 
         assertThatThrownBy(() -> service.startSession(request, OWNER))

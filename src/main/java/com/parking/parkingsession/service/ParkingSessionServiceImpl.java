@@ -1,7 +1,7 @@
 package com.parking.parkingsession.service;
 
 import java.math.BigDecimal;
-import java.time.Duration;
+import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -14,6 +14,7 @@ import com.parking.common.exception.ParkingSessionAlreadyCompletedException;
 import com.parking.common.exception.ParkingSessionNotFoundException;
 import com.parking.common.exception.ParkingSpotNotAvailableException;
 import com.parking.common.exception.ParkingSpotNotFoundException;
+import com.parking.common.exception.ParkingSpotReservedException;
 import com.parking.common.exception.VehicleAlreadyParkedException;
 import com.parking.common.exception.VehicleNotFoundException;
 import com.parking.common.util.ConstraintViolations;
@@ -21,13 +22,14 @@ import com.parking.parking.entity.ParkingSpot;
 import com.parking.parking.entity.ParkingSpotStatus;
 import com.parking.parking.repository.ParkingSpotRepository;
 import com.parking.parkingfee.service.ParkingFeeService;
-import com.parking.parkingrate.service.ParkingRateService;
 import com.parking.parkingsession.dto.ParkingSessionRequest;
 import com.parking.parkingsession.dto.ParkingSessionResponse;
 import com.parking.parkingsession.entity.ParkingSession;
 import com.parking.parkingsession.entity.ParkingSessionStatus;
 import com.parking.parkingsession.mapper.ParkingSessionMapper;
 import com.parking.parkingsession.repository.ParkingSessionRepository;
+import com.parking.reservation.config.ReservationProperties;
+import com.parking.reservation.repository.ReservationRepository;
 import com.parking.vehicle.entity.Vehicle;
 import com.parking.vehicle.repository.VehicleRepository;
 
@@ -42,8 +44,11 @@ public class ParkingSessionServiceImpl implements ParkingSessionService {
     private final ParkingSessionRepository parkingSessionRepository;
     private final ParkingSessionMapper parkingSessionMapper;
     private final ParkingFeeService parkingFeeService;
-    private final ParkingRateService parkingRateService;
+    private final ReservationRepository reservationRepository;
+    private final ReservationProperties reservationProperties;
+    private final Clock clock;
 
+    /** Walk-in: the driver picks any free spot without a reservation. */
     @Override
     @Transactional
     public ParkingSessionResponse startSession(ParkingSessionRequest request, String ownerEmail) {
@@ -54,29 +59,49 @@ public class ParkingSessionServiceImpl implements ParkingSessionService {
                 .orElseThrow(() ->
                         new VehicleNotFoundException("Vehicle not found"));
 
-        if (parkingSessionRepository.existsByVehicleIdAndStatus(
-                request.getVehicleId(),
-                ParkingSessionStatus.ACTIVE)) {
-
-            throw new VehicleAlreadyParkedException(
-                    "Vehicle already has an active parking session");
-        }
         ParkingSpot parkingSpot = parkingSpotRepository
                 .findById(request.getParkingSpotId())
                 .orElseThrow(() ->
                         new ParkingSpotNotFoundException("Parking spot not found"));
 
-      
+        // Walk-ins have no end time, so keep them off spots that are reserved now or soon.
+        LocalDateTime now = LocalDateTime.now(clock);
+        if (reservationRepository.existsBlockingReservation(
+                parkingSpot.getId(), now, now.plusMinutes(reservationProperties.walkInBufferMinutes()))) {
+            throw new ParkingSpotReservedException(
+                    "Parking spot is reserved now or within the next "
+                            + reservationProperties.walkInBufferMinutes() + " minutes");
+        }
+
+        return parkingSessionMapper.toResponse(createSession(vehicle, parkingSpot));
+    }
+
+    /** Check-in: the reservation already holds the spot, so the walk-in reservation check is skipped. */
+    @Override
+    @Transactional
+    public ParkingSession startSessionForReservation(Vehicle vehicle, ParkingSpot parkingSpot) {
+        return createSession(vehicle, parkingSpot);
+    }
+
+    private ParkingSession createSession(Vehicle vehicle, ParkingSpot parkingSpot) {
+
+        if (parkingSessionRepository.existsByVehicleIdAndStatus(
+                vehicle.getId(),
+                ParkingSessionStatus.ACTIVE)) {
+
+            throw new VehicleAlreadyParkedException(
+                    "Vehicle already has an active parking session");
+        }
+
         if (parkingSpot.getStatus() != ParkingSpotStatus.AVAILABLE) {
             throw new ParkingSpotNotAvailableException(
                     "Parking spot is not available");
         }
 
-        ParkingSession session = parkingSessionMapper.toEntity(request);
-
+        ParkingSession session = new ParkingSession();
         session.setVehicle(vehicle);
         session.setParkingSpot(parkingSpot);
-        session.setEntryTime(LocalDateTime.now());
+        session.setEntryTime(LocalDateTime.now(clock));
         session.setStatus(ParkingSessionStatus.ACTIVE);
 
         parkingSpot.setStatus(ParkingSpotStatus.OCCUPIED);
@@ -84,9 +109,8 @@ public class ParkingSessionServiceImpl implements ParkingSessionService {
         // The checks above can race with a concurrent request. saveAndFlush forces the SQL to run
         // here so the database guards (spot @Version, active-session unique indexes) report a
         // conflict inside this method, where we can turn it into a clear 409.
-        ParkingSession savedSession;
         try {
-            savedSession = parkingSessionRepository.saveAndFlush(session);
+            return parkingSessionRepository.saveAndFlush(session);
         } catch (ObjectOptimisticLockingFailureException ex) {
             throw new ParkingSpotNotAvailableException("Parking spot was just taken by another driver");
         } catch (DataIntegrityViolationException ex) {
@@ -99,8 +123,6 @@ public class ParkingSessionServiceImpl implements ParkingSessionService {
             }
             throw ex;
         }
-
-        return parkingSessionMapper.toResponse(savedSession);
     }
 
     @Override
@@ -111,7 +133,7 @@ public class ParkingSessionServiceImpl implements ParkingSessionService {
                 : parkingSessionRepository.findByVehicleUserEmailAndStatusOrderByEntryTimeDesc(ownerEmail, status);
         return sessions.stream().map(parkingSessionMapper::toResponse).toList();
     }
-    
+
     @Override
     @Transactional
     public ParkingSessionResponse completeSession(Long sessionId, String ownerEmail) {
@@ -127,7 +149,7 @@ public class ParkingSessionServiceImpl implements ParkingSessionService {
                     "Parking session is already completed");
         }
 
-        LocalDateTime exitTime = LocalDateTime.now();
+        LocalDateTime exitTime = LocalDateTime.now(clock);
 
         BigDecimal parkingFee = parkingFeeService.calculateFee(
                 session.getParkingSpot().getType(),

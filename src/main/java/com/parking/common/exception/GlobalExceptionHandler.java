@@ -4,6 +4,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.dao.PessimisticLockingFailureException;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.validation.FieldError;
@@ -141,6 +142,24 @@ public class GlobalExceptionHandler  {
 	      );
 	  }
 	  
+	  @ExceptionHandler(ReservationNotFoundException.class)
+	  @ResponseStatus(HttpStatus.NOT_FOUND)
+	  public ApiResponse<Void> handleReservationNotFound(ReservationNotFoundException ex) {
+		  return ApiResponse.failure(ex.getErrorCode().getCode(), ex.getMessage(), null);
+	  }
+
+	  @ExceptionHandler(InvalidReservationException.class)
+	  @ResponseStatus(HttpStatus.BAD_REQUEST)
+	  public ApiResponse<Void> handleInvalidReservation(InvalidReservationException ex) {
+		  return ApiResponse.failure(ex.getErrorCode().getCode(), ex.getMessage(), null);
+	  }
+
+	  @ExceptionHandler({ReservationConflictException.class, ParkingSpotReservedException.class})
+	  @ResponseStatus(HttpStatus.CONFLICT)
+	  public ApiResponse<Void> handleReservationConflict(BusinessException ex) {
+		  return ApiResponse.failure(ex.getErrorCode().getCode(), ex.getMessage(), null);
+	  }
+
 	  // Bad path/query value, e.g. ?status=BOGUS or /parking-rates/TRUCK
 	  @ExceptionHandler(MethodArgumentTypeMismatchException.class)
 	  @ResponseStatus(HttpStatus.BAD_REQUEST)
@@ -150,10 +169,11 @@ public class GlobalExceptionHandler  {
 				  "Invalid value '" + ex.getValue() + "' for parameter '" + ex.getName() + "'", null);
 	  }
 
-	  // Fallback for any other concurrent update (e.g. two requests completing the same session)
-	  @ExceptionHandler(ObjectOptimisticLockingFailureException.class)
+	  // Fallback for any other concurrent update (e.g. two requests completing the same session,
+	  // or a lock timeout/deadlock): the client should simply retry.
+	  @ExceptionHandler({ObjectOptimisticLockingFailureException.class, PessimisticLockingFailureException.class})
 	  @ResponseStatus(HttpStatus.CONFLICT)
-	  public ApiResponse<Void> handleOptimisticLock(ObjectOptimisticLockingFailureException ex) {
+	  public ApiResponse<Void> handleOptimisticLock(Exception ex) {
 		  return ApiResponse.failure(
 				  ErrorCode.CONCURRENT_MODIFICATION.getCode(),
 				  "This record was changed by another request. Please retry.", null);
